@@ -1,0 +1,457 @@
+#! C:/Program Files/Nuke9.0v5b43/nuke-9.0.5.43.dll -nx
+version 8.0 v1
+Group {
+ name sb_Glow
+ inputs 3
+ help "Simon Bjork\nAugust 2013\nVersion 1.5\nbjork.simon@gmail.com"
+ knobChanged "\n\nfrom __future__ import with_statement\n\nn = nuke.thisNode()\nk = nuke.thisKnob()\n\n# Matte type.\nif k.name() == \"glow_matte\":\n    kb_knob = n\[\"keyer_blacks\"]\n    kw_knob = n\[\"keyer_whites\"]\n\n    if n\[\"glow_matte\"].value() == \"luma key\":\n        kb_knob.setVisible(True)\n        kw_knob.setVisible(True)\n    elif n\[\"glow_matte\"].value() == \"matte\":\n        kb_knob.setVisible(False)\n        kw_knob.setVisible(False)\n\n"
+ tile_color 0x4d00ffff
+ note_font Verdana
+ mapsize {0.1111111111 0.096069869}
+ addUserKnob {20 sb_glow_tab l "sb Glow"}
+ addUserKnob {26 divider1 l "" +STARTLINE}
+ addUserKnob {26 overall_txt l "<b>overall controls</b>" T " "}
+ addUserKnob {41 value l colour T Multiply2.value}
+ addUserKnob {7 overall_intensity l "overall intensity" R 0 2}
+ overall_intensity 0.2
+ addUserKnob {26 divider2 l "" +STARTLINE}
+ addUserKnob {26 luma_txt l "<b>matte controls</b>" T " "}
+ addUserKnob {4 glow_matte l "glow matte" M {"luma key" matte}}
+ addUserKnob {7 keyer_blacks l "keyer blacks"}
+ keyer_blacks 0.6
+ addUserKnob {7 keyer_whites l "keyer whites"}
+ keyer_whites 0.1
+ addUserKnob {41 size l "blur matte" T soften_matte.size}
+ addUserKnob {6 show_matte l "view glow matte" +STARTLINE}
+ addUserKnob {26 divider4 l "" +STARTLINE}
+ addUserKnob {41 mix_ontop l "mix original on top" T Merge1.mix}
+ addUserKnob {6 crop_output l "crop output" +STARTLINE}
+ crop_output true
+ addUserKnob {26 divider3 l "" +STARTLINE}
+ addUserKnob {20 create_new_glow l "create new glow" n 1}
+ create_new_glow 0
+ addUserKnob {3 number_of_blurs l "number of blurs" t "Total number of blurs used to create the glow."}
+ number_of_blurs 5
+ addUserKnob {7 master_blur_value l "master blur value" t "Size of the widest blur."}
+ master_blur_value 350
+ addUserKnob {7 master_intensity l "master blur intensity" t "Contribution of the widest blur."}
+ master_intensity 0.05
+ addUserKnob {7 blur_divider l "blur divider" t "blur1 = master blur value\nblur2 = blur1/blur divider\nblur3 = blur2/blur divider\netc"}
+ blur_divider 2
+ addUserKnob {7 intensity_increment l "intensity increment" t "Multiply each blurs contribution with this number."}
+ intensity_increment 2
+ addUserKnob {26 divider5 l "" +STARTLINE}
+ addUserKnob {22 create_glow l "create glow" T "from __future__ import with_statement\nimport nuke\nimport re\n\n# sb Glow\n# Simon Bjork\n# March 2013\n# Version 1.5 (March 2015, minor update)\n# bjork.simon@gmail.com\n\ndef sb_glow():\n\n\tn = nuke.thisNode()\n\n\t# Set up base names.\n\tblurPrefix = 'glow_blur'\n\tmergePrefix = 'glow_merge'\n\tdividerPrefix = 'glow_divider'\n\tnameRE = re.compile('^(%s|%s)' % (blurPrefix, mergePrefix))\n\tdivRE = re.compile(dividerPrefix)\n\n\t# Remove exsisting glow knobs.\n\tfor name, knob in n.knobs().iteritems():\n\t\tif nameRE.search(name) or divRE.search(name):\n\t\t\tn.removeKnob(knob)\n\n\t# Access nodes inside group:\n\twith n:\n\n\t\t# Deselect all nodes to prevent errors.\n\t\tfor i in nuke.allNodes():\n\t\t\ti\[\"selected\"].setValue(False)\n\n\t\t# Delete exsisting glow nodes.\n\t\tfor a in nuke.allNodes('Blur') + nuke.allNodes('Merge2'):\n\t\t\tif nameRE.search(a.name()):\n\t\t\t\tnuke.delete(a)\n\n\t\t# Node positions.\n\t\tblurX = 750\n\t\tblurY = -700\n\t\tmergeX = 350\n\t\tmergeY = -700\n\n\t\t# Move bottom nodes so that they don't interfere with the new nodes.\n\t\tbottom_nodes = \[\"BackdropNode1\", \"Multiply2\", \"Plus1\", \"Merge2\", \"Dot12\", \"mask\", \"AddChannels1\", \"Shuffle3\", \"Dot1\", \"OUTPUT\", \"Dot6\", \"matte_to_rgb\", \"Switch2\", \"Multiply3\", \"Merge1\", \"Dot14\", \"Dot3\", \"Dot15\", \"Reformat1\"]\n\n\t\tfor j in bottom_nodes:\n\t\t\tnode = nuke.toNode(j)\n\t\t\tcurr_node_y = node\['ypos'].value()\n\t\t\tnode\['ypos'].setValue(int(curr_node_y) + 10000)\n\n\t\t# Set up values.\n\t\tnum_blurs = n\[\"number_of_blurs\"].value()\n\t\tblur_value = n\[\"master_blur_value\"].value()\n\t\tdiv_blur = n\[\"blur_divider\"].value()\n\t\tintensity_value = n\[\"master_intensity\"].value()\n\t\tintensity_increment = n\[\"intensity_increment\"].value()\n\n\t\t# Create the glow.\n\t\tfor i in range(int(num_blurs)):\n\n\t\t\t# Connect the glow to these nodes.\n\t\t\tinp = nuke.toNode(\"black_frame\")\n\t\t\tdot = nuke.toNode(\"sb_glow_dot3\")\n\n\t\t\t# Create blur nodes.\n\t\t\tblurName = '%s%d' % (blurPrefix, i + 100)\n\t\t\tb = nuke.createNode('Blur', 'name %s' % blurName, inpanel=False)\n\t\t\tb\[\"channels\"].setValue(\"rgb\")\n\t\t\tb\[\"size\"].setValue(blur_value)\n\t\t\tb\['xpos'].setValue(blurX)\n\t\t\tb\['ypos'].setValue(blurY)                \n\t\t\tb.setInput(0, dot)\n\n\t\t\t# Create blur knobs.\n\t\t\tk = nuke.Link_Knob( blurPrefix + str(i + 1) )\n\t\t\tk.makeLink(str(b\[\"name\"].value()), \"size\" )\n\t\t\tk.setLabel( \"blur\" + str(i + 1) + \" size\" )\n\t\t\tn.addKnob(k)\n\n\t\t\t# Create merge nodes.\n\t\t\tmergeName = '%s%d' % (mergePrefix, i + 100)\n\t\t\tm = nuke.createNode(\"Merge2\", 'name %s' % mergeName, inpanel=False)\n\t\t\tm\[\"operation\"].setValue(\"plus\")\n\t\t\tm\[\"mix\"].setValue(intensity_value)\n\t\t\tm\['xpos'].setValue(mergeX)\n\t\t\tm\['ypos'].setValue(mergeY)\n\n\t\t\t# Create merge knobs.\n\t\t\te = nuke.Link_Knob( mergePrefix + str(i + 1) )\n\t\t\te.makeLink(str(m\[\"name\"].value()), \"mix\" )\n\t\t\te.setLabel( \"intensity\" )\n\t\t\tn.addKnob(e)\n\n\t\t\t# Create separator.\n\t\t\tsep = nuke.Text_Knob(dividerPrefix + str(i + 1),'') \n\t\t\tn.addKnob(sep)\n\n\t\t\t# If it's the first loop.\n\t\t\tif i == 0:\n\t\t\t\tm.setInput(1, b)\n\t\t\t\tm.setInput(0, inp)\n\t\t\t\tm_name = m\[\"name\"].value()\n\n\t\t\telse:\n\t\t\t\tm.setInput(1, b)\n\t\t\t\tol_m = nuke.toNode(str(m_name))\n\t\t\t\tm.setInput(0, ol_m)\n\t\t\t\tm_name = m\[\"name\"].value()\n\n\t\t\t# If it's the last loop.\n\t\t\tthe_i = int(num_blurs) - 1\n\t\t\tif i == the_i:\n\n\t\t\t\t# Connect the adjustment nodes.\n\t\t\t\ttheMult = nuke.toNode(\"Multiply2\")\n\t\t\t\ttheMult.setInput(0, m)\n\n\t\t\t\t# Mesure the offset for exsisting nodes.\n\t\t\t\tmesurer = theMult\n\t\t\t\tmesurer_y = mesurer\['ypos'].value()\n\t\t\t\tcalc = mesurer_y - m\['ypos'].value()\n\t\t\t\toffset = 500\n\n\t\t\t\t# Set position for all the exsisting nodes at the bottom.\n\t\t\t\tfor k in bottom_nodes:\n\t\t\t\t\tnode = nuke.toNode(k)\n\t\t\t\t\tcurrent_y = node\['ypos'].value()\n\t\t\t\t\tnode\['ypos'].setValue(current_y - calc + offset)\n\n\t\t\t# Create new values for next loop.\n\t\t\tblur_value = blur_value/div_blur\n\t\t\tintensity_value = intensity_value*intensity_increment\n\t\t\tblurY = blurY + 250\n\t\t\tmergeY = mergeY + 250\n\nsb_glow()" +STARTLINE}
+ addUserKnob {20 endGroup_create_new_glow l endGroup n -1}
+ addUserKnob {26 divider6 l "" +STARTLINE}
+ addUserKnob {20 individual_controls l "individual controls"}
+ addUserKnob {26 divider7 l "" +STARTLINE}
+ addUserKnob {41 glow_blur1 l "blur1 size" T glow_blur100.size}
+ addUserKnob {41 glow_merge1 l intensity T glow_merge100.mix}
+ addUserKnob {26 glow_divider1 l "" +STARTLINE}
+ addUserKnob {41 glow_blur2 l "blur2 size" T glow_blur101.size}
+ addUserKnob {41 glow_merge2 l intensity T glow_merge101.mix}
+ addUserKnob {26 glow_divider2 l "" +STARTLINE}
+ addUserKnob {41 glow_blur3 l "blur3 size" T glow_blur102.size}
+ addUserKnob {41 glow_merge3 l intensity T glow_merge102.mix}
+ addUserKnob {26 glow_divider3 l "" +STARTLINE}
+ addUserKnob {41 glow_blur4 l "blur4 size" T glow_blur103.size}
+ addUserKnob {41 glow_merge4 l intensity T glow_merge103.mix}
+ addUserKnob {26 glow_divider4 l "" +STARTLINE}
+ addUserKnob {41 glow_blur5 l "blur5 size" T glow_blur104.size}
+ addUserKnob {41 glow_merge5 l intensity T glow_merge104.mix}
+ addUserKnob {26 glow_divider5 l "" +STARTLINE}
+}
+ BackdropNode {
+  inputs 0
+  name BackdropNode1
+  label "glow adjustments"
+  note_font_size 92
+  xpos -664
+  ypos 506
+  bdwidth 1849
+  bdheight 1670
+ }
+ BackdropNode {
+  inputs 0
+  name BackdropNode2
+  tile_color 0x7171c600
+  label "glow matte"
+  note_font_size 92
+  xpos 1744
+  ypos -3594
+  bdwidth 1569
+  bdheight 1622
+ }
+ Input {
+  inputs 0
+  name glow_matte
+  label "input number: \[value number]"
+  xpos 2874
+  ypos -3123
+  number 2
+ }
+ AddChannels {
+  channels {rgba.alpha none none rgba.alpha}
+  color 1
+  name AddChannels3
+  xpos 2874
+  ypos -2906
+  disable {{"\[exists parent.input2] ? 1 : 0" i x428 1}}
+ }
+ Shuffle {
+  alpha white
+  name Shuffle5
+  xpos 2874
+  ypos -2739
+  disable {{"\[exists parent.input2] ? 1 : 0" i x428 1}}
+ }
+ Dot {
+  name Dot7
+  xpos 2908
+  ypos -2586
+ }
+ Input {
+  inputs 0
+  name input
+  note_font_size 92
+  xpos -208
+  ypos -4550
+ }
+ Dot {
+  name Dot4
+  xpos -174
+  ypos -4012
+ }
+set Naa57ec00 [stack 0]
+ Dot {
+  name Dot5
+  xpos 1996
+  ypos -4012
+ }
+ Shuffle {
+  alpha black
+  name Shuffle2
+  xpos 1962
+  ypos -3417
+ }
+ Remove {
+  operation keep
+  channels rgb
+  name Remove1
+  xpos 1962
+  ypos -3306
+ }
+ Dot {
+  name Dot10
+  xpos 1996
+  ypos -3140
+ }
+set N73fc6000 [stack 0]
+ Dot {
+  name Dot2
+  xpos 2484
+  ypos -3140
+ }
+ Keyer {
+  operation "luminance key"
+  range {{keyer_blacks} {keyer_whites} 1 1}
+  name Keyer1
+  xpos 2450
+  ypos -2870
+ }
+ Switch {
+  inputs 2
+  which {{parent.glow_matte x1 0}}
+  name Switch1
+  xpos 2450
+  ypos -2596
+ }
+ Blur {
+  channels alpha
+  name soften_matte
+  xpos 2450
+  ypos -2464
+ }
+ Dot {
+  name Dot9
+  xpos 2484
+  ypos -2352
+ }
+push $N73fc6000
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  name Copy1
+  xpos 1962
+  ypos -2362
+ }
+ Premult {
+  name Premult1
+  xpos 1962
+  ypos -2165
+ }
+ Dot {
+  name Dot11
+  xpos 1996
+  ypos -1569
+ }
+set N78cde000 [stack 0]
+ Dot {
+  name Dot8
+  xpos 2385
+  ypos -1569
+ }
+ Dot {
+  name Dot6
+  xpos 2385
+  ypos 1749
+ }
+ Shuffle {
+  red alpha
+  green alpha
+  blue alpha
+  alpha white
+  name matte_to_rgb
+  xpos 164
+  ypos 1739
+ }
+push $Naa57ec00
+ Dot {
+  name Dot14
+  xpos -174
+  ypos 1052
+ }
+set N7e141400 [stack 0]
+ Dot {
+  name Dot3
+  xpos -364
+  ypos 1052
+ }
+ Dot {
+  name Dot15
+  xpos -364
+  ypos 1356
+ }
+ Input {
+  inputs 0
+  name mask
+  note_font_size 92
+  xpos 700
+  ypos 609
+  number 1
+ }
+ AddChannels {
+  channels {rgba.alpha none none rgba.alpha}
+  color 1
+  name AddChannels1
+  xpos 700
+  ypos 888
+  disable {{"\[exists parent.input1] ? 1 : 0" i x428 1}}
+ }
+ Shuffle {
+  alpha white
+  name Shuffle3
+  xpos 700
+  ypos 1010
+  disable {{"\[exists parent.input1] ? 1 : 0" x428 1}}
+ }
+ Dot {
+  name Dot1
+  xpos 734
+  ypos 1126
+ }
+ Crop {
+  inputs 0
+  box {{"\[exists parent.input0] ? input0.width/2 - (input0.width/2 - input0.bbox.x) : 0"} {"\[exists parent.input0] ? input0.height/2 - (input0.height/2 - input0.bbox.y) : 0"} {"\[exists parent.input0] ? input0.bbox.r : width"} {"\[exists parent.input0] ? input0.bbox.t : height"}}
+  name black_frame
+  tile_color 0xff
+  xpos 350
+  ypos -1320
+ }
+set N96b08800 [stack 0]
+ Dot {
+  name Dot13
+  xpos 384
+  ypos -999
+ }
+push $N78cde000
+ Shuffle {
+  alpha black
+  name Shuffle1
+  xpos 1962
+  ypos -1333
+ }
+ CopyBBox {
+  inputs 2
+  name CopyBBox1
+  xpos 1962
+  ypos -1002
+ }
+ Dot {
+  name sb_glow_dot3
+  xpos 1996
+  ypos -755
+ }
+set N83f04800 [stack 0]
+ Blur {
+  channels rgb
+  size 21.875
+  name glow_blur104
+  xpos 750
+  ypos 300
+ }
+push $N83f04800
+ Blur {
+  channels rgb
+  size 43.75
+  name glow_blur103
+  xpos 750
+  ypos 50
+ }
+push $N83f04800
+ Blur {
+  channels rgb
+  size 87.5
+  name glow_blur102
+  xpos 750
+  ypos -200
+ }
+push $N83f04800
+ Blur {
+  channels rgb
+  size 175
+  name glow_blur101
+  xpos 750
+  ypos -450
+ }
+push $N83f04800
+ Blur {
+  channels rgb
+  size 350
+  name glow_blur100
+  xpos 750
+  ypos -700
+ }
+push $N96b08800
+ Merge2 {
+  inputs 2
+  operation plus
+  mix 0.05
+  name glow_merge100
+  xpos 350
+  ypos -700
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  mix 0.1
+  name glow_merge101
+  xpos 350
+  ypos -450
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  mix 0.2
+  name glow_merge102
+  xpos 350
+  ypos -200
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  mix 0.4
+  name glow_merge103
+  xpos 350
+  ypos 50
+ }
+ Merge2 {
+  inputs 2
+  operation plus
+  mix 0.8
+  name glow_merge104
+  xpos 350
+  ypos 300
+ }
+ Multiply {
+  channels rgb
+  value {0.8 1.5 2.5 1}
+  name Multiply2
+  label colour
+  xpos 350
+  ypos 800
+ }
+ Merge2 {
+  inputs 2
+  operation mask
+  name Merge2
+  xpos 350
+  ypos 1116
+ }
+ Dot {
+  name Dot12
+  xpos 384
+  ypos 1225
+ }
+ Multiply {
+  value {{overall_intensity}}
+  name Multiply3
+  label "overall intensity"
+  xpos 3
+  ypos 1210
+ }
+push $N7e141400
+ Merge2 {
+  inputs 2
+  operation plus
+  Achannels rgb
+  name Plus1
+  xpos -208
+  ypos 1217
+ }
+ Merge2 {
+  inputs 2
+  mix 0
+  name Merge1
+  xpos -208
+  ypos 1346
+ }
+ Reformat {
+  name Reformat1
+  xpos -208
+  ypos 1571
+  disable {{!crop_output}}
+ }
+ Switch {
+  inputs 2
+  which {{parent.show_matte x1 0}}
+  name Switch2
+  label "0 = glow\n1 = glow matte"
+  xpos -208
+  ypos 1726
+ }
+ Output {
+  name OUTPUT
+  note_font_size 92
+  xpos -208
+  ypos 1990
+ }
+ StickyNote {
+  inputs 0
+  name StickyNote3
+  label "Do not change any of these nodes!\nPython callbacks are based on the names of the nodes."
+  note_font_size 92
+  xpos -1245
+  ypos -4927
+ }
+ StickyNote {
+  inputs 0
+  name StickyNote1
+  label glow
+  note_font_size 92
+  xpos 959
+  ypos -1362
+ }
+end_group

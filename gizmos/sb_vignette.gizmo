@@ -1,0 +1,119 @@
+#! C:/Program Files/Nuke8.0v1/nuke-8.0.v1.dll -nx
+version 8.0 v1
+Gizmo {
+ name sb_Vignette
+ tile_color 0xa7006cff
+ addUserKnob {20 User}
+ addUserKnob {41 multiply T Grade1.multiply}
+ addUserKnob {41 gamma T Grade1.gamma}
+ addUserKnob {41 size l blur T Blur7.size}
+ addUserKnob {26 "" +STARTLINE}
+ addUserKnob {6 view_matte l "view matte" +STARTLINE}
+ view_matte false
+ addUserKnob {41 scale l "scale matte" T Transform2.scale}
+ addUserKnob {41 size_1 l "blur matte" T Blur6.size}
+}
+ BackdropNode {
+  inputs 0
+  name BackdropNode2
+  tile_color 0x444744ff
+  label vignette
+  note_font_size 92
+  xpos -68
+  ypos -503
+  bdwidth 812
+  bdheight 1122
+ }
+ Radial {
+  inputs 0
+  cliptype none
+  area {{curve} {curve} {"\[exists parent.input0] ? parent.input0.width : root.width"} {"\[exists parent.input0] ? parent.input0.width : root.width"}}
+  softness 0
+  name Radial1
+  xpos 464
+  ypos -254
+ }
+ Transform {
+  translate {0 {"\[exists parent.input0] ? (parent.input0.height - parent.input0.width)/2 : 0"}}
+  name Transform1
+  label "center vignette"
+  xpos 464
+  ypos -141
+ }
+ Transform {
+  scale 0.8
+  center {{"\[exists parent.input0] ? parent.input0.width/2 : 0"} {"\[exists parent.input0] ? parent.input0.height/2 : 0"}}
+  name Transform2
+  label "scale vignette"
+  xpos 464
+  ypos -57
+ }
+ Invert {
+  channels alpha
+  name Invert1
+  xpos 464
+  ypos 22
+ }
+ Blur {
+  channels alpha
+  size 200
+  name Blur6
+  xpos 464
+  ypos 106
+ }
+ Dot {
+  name Dot10
+  xpos 498
+  ypos 238
+ }
+set N10334800 [stack 0]
+ Dot {
+  name Dot11
+  xpos 498
+  ypos 404
+ }
+set N10334400 [stack 0]
+ Shuffle {
+  red alpha
+  green alpha
+  blue alpha
+  name Shuffle1
+  xpos 436
+  ypos 834
+ }
+push $N10334400
+push $N10334800
+ Input {
+  inputs 0
+  name img
+  xpos 132
+  ypos -766
+ }
+ Blur {
+  inputs 1+1
+  channels rgb
+  size 1
+  name Blur7
+  xpos 132
+  ypos 228
+ }
+ Grade {
+  inputs 1+1
+  multiply 0.8
+  name Grade1
+  xpos 132
+  ypos 400
+ }
+ Switch {
+  inputs 2
+  which {{view_matte}}
+  name Switch1
+  xpos 132
+  ypos 1007
+ }
+ Output {
+  name Output1
+  xpos 132
+  ypos 1184
+ }
+end_group

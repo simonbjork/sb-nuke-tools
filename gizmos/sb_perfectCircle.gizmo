@@ -1,0 +1,96 @@
+#! C:/Program Files/Nuke8.0v1/nuke-8.0.v1.dll -nx
+version 8.0 v1
+Group {
+ name sb_PerfectCircle
+ tile_color 0x664d4dff
+ note_font_color 0xffffffff
+ addUserKnob {20 User}
+ addUserKnob {41 translate T Transform5.translate}
+ addUserKnob {41 scale T Transform5.scale}
+ addUserKnob {41 softness T Radial1.softness}
+ addUserKnob {26 ""}
+ addUserKnob {4 output_channel l output M {rgba alpha ""}}
+ addUserKnob {41 area l INVISIBLE +INVISIBLE T Radial1.area}
+}
+ Reformat {
+  inputs 0
+  type "to box"
+  format "3840 2160 0 0 3840 2160 1 UHD_4K"
+  box_width {{"\[exists parent.input0] ? parent.input0.width : root.width"}}
+  box_height {{"\[exists parent.input0] ? parent.input0.height: root.height"}}
+  box_fixed true
+  name Reformat1
+  xpos 237
+  ypos -2
+ }
+ Radial {
+  cliptype none
+  area {{curve} {curve} {width} {width}}
+  softness 0
+  name Radial1
+  xpos 237
+  ypos 68
+ }
+ Transform {
+  translate {{curve} {"(height-width)/2 "}}
+  name Transform3
+  label "center vignette"
+  xpos 237
+  ypos 146
+ }
+ Transform {
+  scale {{height/width}}
+  center {{width/2} {height/2}}
+  name Transform4
+  label "scale vignette"
+  xpos 237
+  ypos 233
+ }
+ Transform {
+  center {{width/2 x1 0} {height/2 x1 0}}
+  name Transform5
+  xpos 237
+  ypos 318
+ }
+ Dot {
+  name Dot1
+  xpos 271
+  ypos 456
+ }
+set Nb60ea000 [stack 0]
+ Input {
+  inputs 0
+  name img
+  xpos 19
+  ypos -58
+ }
+ Copy {
+  inputs 2
+  from0 rgba.alpha
+  to0 rgba.alpha
+  name Copy1
+  xpos 19
+  ypos 446
+ }
+push $Nb60ea000
+ Switch {
+  inputs 2
+  which {{output_channel}}
+  name Switch1
+  xpos 19
+  ypos 620
+ }
+ Output {
+  name Output1
+  xpos 19
+  ypos 756
+ }
+ StickyNote {
+  inputs 0
+  name StickyNote1
+  label "Handles hidden from Radial1 using:\n\nfrom __future__ import with_statement\n\nwith nuke.toNode(\"sb_PerfectCircle1\"):\n    nuke.toNode(\"Radial1\")\[\"area\"].setFlag(0x00008000)\n\nThis is the NO_HANDLES flag. Very useful.\n\nMore info: http://community.thefoundry.co.uk/discussion/topic.aspx?f=190&t=102074"
+  note_font_size 21
+  xpos 612
+  ypos 3
+ }
+end_group
